@@ -43,7 +43,7 @@ export const DirectAccess = () => {
   };
 
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth="sm" sx={{ p: 2, width: '80vw',  height: '100vh'}}>
       <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
         <Typography variant="h5" gutterBottom align="center">
           Acceso Directo a Mesa

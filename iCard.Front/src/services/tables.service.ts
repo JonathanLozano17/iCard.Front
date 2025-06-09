@@ -24,11 +24,6 @@ export const TableService = {
     return response.data;
   },
 
-  async getTableByQrCode(qrCode: string) {
-    const response = await axios.get(`${API_URL}/qr/${qrCode}`);
-    return response.data;
-  },
-
   async createTable(tableData: any) {
     const { token } = useAuthStore.getState();
     const response = await axios.post(API_URL, tableData, {
@@ -59,34 +54,24 @@ export const TableService = {
     return response.data;
   },
 
-  async getQrCodeBase64(id: number) {
+  async getTableStatus(id: number) {
     const { token } = useAuthStore.getState();
-    const response = await axios.get(`${API_URL}/${id}/qrcode`, {
+    const response = await axios.get(`${API_URL}/${id}/status`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data.qrCodeImage;
+    return response.data;
   },
 
-  async freeTable(tableId: number) {
+  async getTableHistory(tableId: number, fromDate?: string) {
     const { token } = useAuthStore.getState();
-  
-    const url = `${API_URL}/${tableId}/free`;
-    const headers = {
-      Authorization: `Bearer ${token}`,
-    };
-    const body = {}; // cuerpo vacío en este caso
-  
-    // Log para depuración
-    console.log('PUT Request to:', url);
-    console.log('Headers:', headers);
-    console.log('Body:', body);
-  
-    const response = await axios.put(url, body, { headers });
+    const response = await axios.get(`${API_URL.replace('/tables', '/orders/table')}/${tableId}/history${fromDate ? `?fromDate=${fromDate}` : ''}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     return response.data;
-  }
+  },
   
-
-
-}; 
+};

@@ -28,7 +28,7 @@ export const TableListPublic = () => {
   }, []);
 
   return (
-    <Container maxWidth="md">
+    <Container maxWidth="md" sx={{ p: 2, width: '80vw', height: '100vh'}}>
       <Typography variant="h4" align="center" gutterBottom sx={{ mt: 4 }}>
         Seleccione su Mesa
       </Typography>

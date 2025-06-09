@@ -12,6 +12,8 @@ import { TableListPublic } from './pages/public/TableListPublic';
 import { MenuPage } from './pages/public/Menu/MenuPage';
 import { OrderList } from './components/orders/OrderList';
 import { Box } from '@mui/material';
+import { DashboardPage } from './pages/private/Dashboard/DashboardPage';
+import { TableHistory } from './components/tables/TableHistory';
 
 
 function App() {
@@ -25,15 +27,7 @@ function App() {
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    width="100%"
-                    sx={{ flexGrow: 1 }}
-                  >
-                    <h1>Dashboard Page Coming Soon</h1>
-                  </Box>
+                  <DashboardPage/>
                 </ProtectedRoute>
               }
             />
@@ -67,6 +61,7 @@ function App() {
             <Route path="/menu" element={<MenuPage />} />
             <Route path="/menu/:tableId" element={<MenuPage />} />
             <Route path="/tables/:tableId/orders" element={<OrderList />} />
+            {/* <Route path="/tables/:tableId/history" element={<TableHistory />} /> */}
 
           </Routes>
         </Layout>

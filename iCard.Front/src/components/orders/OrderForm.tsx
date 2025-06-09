@@ -23,6 +23,8 @@ import {
 import { Add, Delete } from '@mui/icons-material';
 import { ProductService } from '../../services/products.service';
 import { TableService } from '../../services/tables.service';
+import { OrderService } from '../../services/orders.service';
+
 
 interface OrderFormProps {
   open: boolean;
@@ -172,12 +174,7 @@ export const OrderForm = ({ open, onClose, order }: OrderFormProps) => {
         notes,
       };
 
-      if (order) {
-        // Actualizar pedido (si tu backend lo permite)
-        // await OrderService.updateOrder(order.id, orderData);
-      } else {
-        await OrderService.createOrder(orderData);
-      }
+      await OrderService.createOrder(orderData);
 
       onClose();
     } catch (error) {

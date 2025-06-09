@@ -19,7 +19,7 @@ import {
   IconButton,
   Paper
 } from '@mui/material';
-import { Add, Remove, ShoppingCart } from '@mui/icons-material';
+import { Add, Remove, ShoppingCart, ListAlt } from '@mui/icons-material'; // ListAlt para el ícono del botón
 import { ProductService } from '../../../services/products.service';
 import { CategoryService } from '../../../services/categories.service';
 import { OrderService } from '../../../services/orders.service';
@@ -92,7 +92,6 @@ export const MenuPage = () => {
   const handleAddToCart = (product: Product) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.product.id === product.id);
-      
       if (existingItem) {
         return prevCart.map(item =>
           item.product.id === product.id
@@ -108,7 +107,6 @@ export const MenuPage = () => {
   const handleRemoveFromCart = (productId: number) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.product.id === productId);
-      
       if (existingItem && existingItem.quantity > 1) {
         return prevCart.map(item =>
           item.product.id === productId
@@ -133,12 +131,12 @@ export const MenuPage = () => {
 
   const handlePlaceOrder = async () => {
     if (!tableId) return;
-  
+
     if (cart.length === 0) {
       setError('Agregue al menos un producto al carrito');
       return;
     }
-  
+
     try {
       setLoading(true);
       const orderData = {
@@ -146,21 +144,21 @@ export const MenuPage = () => {
         customerName,
         items: cart.map(item => ({
           productId: item.product.id,
+          productName: item.product.name,  
           quantity: item.quantity,
+          unitPrice: item.product.price,
           notes: item.notes
         })),
         notes
       };
-  
+
       await OrderService.createOrder(orderData);
-  
-      // Limpia el estado tras realizar el pedido
+
       setSuccess('Pedido realizado con éxito!');
       setCart([]);
       setCustomerName('');
       setNotes('');
-  
-      // Redirige a la página de pedidos para la mesa
+
       navigate(`/tables/${tableId}/orders`);
     } catch (err) {
       setError('Error al realizar el pedido');
@@ -169,7 +167,6 @@ export const MenuPage = () => {
       setLoading(false);
     }
   };
-  
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -183,25 +180,28 @@ export const MenuPage = () => {
   }
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h4" gutterBottom>
-        Menú - Mesa {tableId}
-      </Typography>
-      
-      {/* Notificaciones */}
-      <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={() => setError('')}
-      >
+    <Box sx={{ p: 2, width: '80vw', height: '100vh' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4" gutterBottom>
+          Menú - Mesa {tableId}
+        </Typography>
+
+        {/* BOTÓN NUEVO para ver pedidos */}
+        <Button
+          variant="outlined"
+          startIcon={<ListAlt />}
+          onClick={() => navigate(`/tables/${tableId}/orders`)}
+        >
+          Ver Pedidos
+        </Button>
+      </Box>
+
+      {/* Snackbar de errores y éxito */}
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
         <Alert severity="error">{error}</Alert>
       </Snackbar>
-      
-      <Snackbar
-        open={!!success}
-        autoHideDuration={3000}
-        onClose={() => setSuccess('')}
-      >
+
+      <Snackbar open={!!success} autoHideDuration={3000} onClose={() => setSuccess('')}>
         <Alert severity="success">{success}</Alert>
       </Snackbar>
 

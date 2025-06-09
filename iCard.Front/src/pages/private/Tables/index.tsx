@@ -6,7 +6,7 @@ export const TablesPage = () => {
   useAuth(); // Esto redirigirá si no está autenticado
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 4, width: '80vw'  }}>
       <TableList />
     </Container>
   );

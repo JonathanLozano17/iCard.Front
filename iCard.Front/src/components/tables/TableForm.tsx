@@ -6,8 +6,7 @@ import {
   DialogActions,
   Button,
   TextField,
-  Box,
-  Typography,
+  Box
 } from '@mui/material';
 import { TableService } from '../../services/tables.service';
 
@@ -42,10 +41,8 @@ export const TableForm = ({ open, onClose, table }: TableFormProps) => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
     if (!tableNumber.trim()) newErrors.tableNumber = 'El número de mesa es requerido';
     if (isNaN(capacity) || capacity <= 0) newErrors.capacity = 'Capacidad no válida';
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -54,21 +51,15 @@ export const TableForm = ({ open, onClose, table }: TableFormProps) => {
     if (!validateForm()) return;
 
     try {
-      const tableData = {
-        tableNumber,
-        description,
-        capacity,
-      };
-
+      const tableData = { tableNumber, description, capacity };
       if (table) {
         await TableService.updateTable(table.id, tableData);
       } else {
         await TableService.createTable(tableData);
       }
-
       onClose();
     } catch (error: any) {
-      if (error.message.includes("número de mesa")) {
+      if (error.message.includes('número de mesa')) {
         setErrors({ tableNumber: 'Este número de mesa ya existe' });
       } else {
         console.error('Error saving table:', error);
@@ -78,9 +69,7 @@ export const TableForm = ({ open, onClose, table }: TableFormProps) => {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {table ? 'Editar Mesa' : 'Crear Nueva Mesa'}
-      </DialogTitle>
+      <DialogTitle>{table ? 'Editar Mesa' : 'Crear Nueva Mesa'}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
           <TextField
@@ -92,7 +81,6 @@ export const TableForm = ({ open, onClose, table }: TableFormProps) => {
             helperText={errors.tableNumber}
             required
           />
-          
           <TextField
             label="Descripción (opcional)"
             fullWidth
@@ -101,7 +89,6 @@ export const TableForm = ({ open, onClose, table }: TableFormProps) => {
             multiline
             rows={3}
           />
-          
           <TextField
             label="Capacidad"
             type="number"

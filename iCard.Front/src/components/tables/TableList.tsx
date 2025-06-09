@@ -1,72 +1,41 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TablePagination,
-  TextField,
-  IconButton,
-  Tooltip,
-  Box,
-  Typography,
-  Button,
-  Chip,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Paper, TablePagination, TextField, IconButton, Tooltip, Box, Typography, Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle
 } from '@mui/material';
-import { 
-  Edit, 
-  Add, 
-  QrCode,
-  CheckCircle,
-  Cancel
-} from '@mui/icons-material';
+import { Edit, Add, CheckCircle, Cancel, History } from '@mui/icons-material'; // Importé History aquí
 import { TableService } from '../../services/tables.service';
 import { useAuthStore } from '../../stores/auth.store';
 import { TableForm } from './TableForm';
-import { QRCodeGenerator } from './QRCodeGenerator';
-import { useNavigate, useLocation } from 'react-router-dom'; 
-import { MeetingRoom } from '@mui/icons-material'; 
-import { FreeTableDialog } from '../orders/FreeTableDialog'; 
-
+import { TableHistory } from './TableHistory';
 
 type Table = {
   id: number;
   tableNumber: string;
   description: string;
   capacity: number;
-  qrCodeContent: string;
   isActive: boolean;
   createdAt: string;
 };
 
 export const TableList = () => {
-  const location = useLocation();
-  const navigate = useNavigate(); 
-  const [refresh, setRefresh] = useState(false);
-
   const [tables, setTables] = useState<Table[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [openForm, setOpenForm] = useState(false);
-  const [openQrDialog, setOpenQrDialog] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
-  const [freeDialogOpen, setFreeDialogOpen] = useState(false);
+  const [openHistory, setOpenHistory] = useState(false);
+  const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const { user } = useAuthStore();
 
   useEffect(() => {
     fetchTables();
   }, []);
-
-  useEffect(() => {
-    if (location.state?.tableFreed) {
-      fetchTables();
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location]);
 
   const fetchTables = async () => {
     try {
@@ -77,7 +46,7 @@ export const TableList = () => {
     }
   };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
@@ -91,10 +60,10 @@ export const TableList = () => {
     setPage(0);
   };
 
-  const filteredTables = tables.filter((table) => {
-    return table.tableNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (table.description && table.description.toLowerCase().includes(searchTerm.toLowerCase()));
-  });
+  const filteredTables = tables.filter((table) =>
+    table.tableNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (table.description && table.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const handleOpenForm = (table: Table | null) => {
     setSelectedTable(table);
@@ -107,16 +76,6 @@ export const TableList = () => {
     fetchTables();
   };
 
-  const handleOpenQrDialog = (table: Table) => {
-    setSelectedTable(table);
-    setOpenQrDialog(true);
-  };
-
-  const handleCloseQrDialog = () => {
-    setOpenQrDialog(false);
-    setSelectedTable(null);
-  };
-
   const handleToggleStatus = async (id: number) => {
     try {
       await TableService.toggleTableStatus(id);
@@ -126,8 +85,14 @@ export const TableList = () => {
     }
   };
 
-  const handleSelectTable = (tableId: number) => {
-    navigate(`/menu/${tableId}`);
+  const handleOpenHistory = (tableId: number) => {
+    setSelectedTableId(tableId);
+    setOpenHistory(true);
+  };
+
+  const handleCloseHistory = () => {
+    setOpenHistory(false);
+    setSelectedTableId(null);
   };
 
   return (
@@ -142,11 +107,7 @@ export const TableList = () => {
           onChange={handleSearch}
         />
         {user?.role === 'Admin' && (
-          <Button
-            startIcon={<Add />}
-            variant="contained"
-            onClick={() => handleOpenForm(null)}
-          >
+          <Button startIcon={<Add />} variant="contained" onClick={() => handleOpenForm(null)}>
             Nueva Mesa
           </Button>
         )}
@@ -162,84 +123,44 @@ export const TableList = () => {
               <TableCell>Estado</TableCell>
               <TableCell>Fecha creación</TableCell>
               <TableCell>Acciones</TableCell>
+              <TableCell>Historial</TableCell> {/* nueva columna */}
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredTables
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((table) => (
-                <TableRow
-                  key={table.id}
-                  hover
-                  sx={{ cursor: 'pointer' }}
-                  onClick={() => handleSelectTable(table.id)}
-                >
-                  <TableCell>{table.tableNumber}</TableCell>
-                  <TableCell>{table.description || '-'}</TableCell>
-                  <TableCell>{table.capacity}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={table.isActive ? 'Activa' : 'Inactiva'}
-                      color={table.isActive ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {new Date(table.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Tooltip title="Ver QR">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleOpenQrDialog(table)}
-                        >
-                          <QrCode fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-
-                      {user?.role === 'Admin' && (
-                        <>
-                          <Tooltip title="Editar">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenForm(table)}
-                            >
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-
-                          <Tooltip title={table.isActive ? 'Desactivar' : 'Activar'}>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleToggleStatus(table.id)}
-                              color={table.isActive ? 'error' : 'success'}
-                            >
-                              {table.isActive ? (
-                                <Cancel fontSize="small" />
-                              ) : (
-                                <CheckCircle fontSize="small" />
-                              )}
-                            </IconButton>
-                          </Tooltip>
-
-                          <Tooltip title="Liberar mesa">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setSelectedTable(table);
-                                setFreeDialogOpen(true);
-                              }}
-                            >
-                              <MeetingRoom fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      )}
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
+            {filteredTables.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((table) => (
+              <TableRow key={table.id} hover>
+                <TableCell>{table.tableNumber}</TableCell>
+                <TableCell>{table.description}</TableCell>
+                <TableCell>{table.capacity}</TableCell>
+                <TableCell>{table.isActive ? 'Activo' : 'Inactivo'}</TableCell>
+                <TableCell>{new Date(table.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => handleOpenForm(table)}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={table.isActive ? 'Desactivar' : 'Activar'}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleToggleStatus(table.id)}
+                        color={table.isActive ? 'error' : 'success'}
+                      >
+                        {table.isActive ? <Cancel fontSize="small" /> : <CheckCircle fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Tooltip title="Ver Historial">
+                    <IconButton size="small" onClick={() => handleOpenHistory(table.id)}>
+                      <History fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </TableContainer>
@@ -261,21 +182,15 @@ export const TableList = () => {
         table={selectedTable}
       />
 
-      {selectedTable && (
-        <QRCodeGenerator
-          tableId={selectedTable.id}
-          tableNumber={selectedTable.tableNumber}
-          open={openQrDialog}
-          onClose={handleCloseQrDialog}
-        />
-      )}
-
-      <FreeTableDialog
-        open={freeDialogOpen}
-        tableId={selectedTable?.id || 0}
-        onClose={() => setFreeDialogOpen(false)}
-        onSuccess={fetchTables}
-      />
+      <Dialog open={openHistory} onClose={handleCloseHistory} maxWidth="lg" fullWidth>
+        <DialogTitle>Historial de Mesa</DialogTitle>
+        <DialogContent dividers>
+          {selectedTableId && <TableHistory tableId={selectedTableId} />}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseHistory}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

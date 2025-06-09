@@ -15,7 +15,7 @@ import {
   Alert,
   IconButton,
 } from '@mui/material';
-import { Visibility, Payment, Cancel } from '@mui/icons-material';
+import { Visibility, Payment } from '@mui/icons-material';
 import { CheckCircle, Warning } from '@mui/icons-material';
 import { OrderService } from '../../services/orders.service';
 import { OrderStatusBadge } from './OrderStatusBadge';
@@ -64,10 +64,7 @@ export const OrderList = () => {
   const handlePayOrder = async (orderId: number) => {
     try {
       setUpdating(true);
-      const response = await OrderService.updateOrderPayment(orderId, {
-        paymentStatus: true,
-        paymentMethod: 'Cash'
-      });
+      const response = await OrderService.completeOrder(orderId);
 
       if (response) {
         setOrders(orders.map(order =>
@@ -87,7 +84,6 @@ export const OrderList = () => {
   const handleCancelOrder = async (orderId: number) => {
     try {
       setUpdating(true);
-      await OrderService.cancelOrder(orderId);
 
       setOrders(orders.map(order =>
         order.id === orderId
@@ -104,13 +100,8 @@ export const OrderList = () => {
 
   const handleFreeTableSuccess = async () => {
     try {
-      // 1. Limpiar los pedidos locales
       setOrders([]);
-
-      // 2. Redirigir a la vista de mesas con parámetro de recarga
       navigate('/tables', { state: { tableFreed: true } });
-
-      // Opcional: Mostrar mensaje de éxito
       alert('Mesa liberada correctamente. Puede atender a un nuevo cliente.');
     } catch (err) {
       setError('Error al liberar la mesa');
@@ -125,6 +116,32 @@ export const OrderList = () => {
   const hasPendingOrders = orders.some(
     order => !order.paymentStatus && order.status !== 'Cancelled'
   );
+
+  // Nueva función para manejar el botón "Cerrar cuenta y liberar mesa"
+  const handleCloseOrPay = async () => {
+    if (hasPendingOrders) {
+      setCloseDialogOpen(true);
+    } else {
+      try {
+        setUpdating(true);
+
+        // Por si hay pedidos pendientes inesperados, marcar como pagado todos
+        for (const order of orders) {
+          if (!order.paymentStatus && order.status !== 'Cancelled') {
+            await OrderService.completeOrder(order.id);
+          }
+        }
+
+        handleFreeTableSuccess();
+
+      } catch (err: any) {
+        setError(`Error al procesar el pago: ${err.message}`);
+        console.error(err);
+      } finally {
+        setUpdating(false);
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -191,26 +208,15 @@ export const OrderList = () => {
                       </IconButton>
 
                       {!order.paymentStatus && order.status !== 'Cancelled' && (
-                        <>
-                          <IconButton
-                            size="small"
-                            color="success"
-                            onClick={() => handlePayOrder(order.id)}
-                            disabled={updating}
-                            title="Marcar como pagado"
-                          >
-                            <Payment fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleCancelOrder(order.id)}
-                            disabled={updating}
-                            title="Cancelar pedido"
-                          >
-                            <Cancel fontSize="small" />
-                          </IconButton>
-                        </>
+                        <IconButton
+                          size="small"
+                          color="success"
+                          onClick={() => handlePayOrder(order.id)}
+                          disabled={updating}
+                          title="Marcar como pagado"
+                        >
+                          <Payment fontSize="small" />
+                        </IconButton>
                       )}
                     </Box>
                   </TableCell>
@@ -225,11 +231,12 @@ export const OrderList = () => {
         <Button
           variant="contained"
           color={hasPendingOrders ? "warning" : "success"}
-          onClick={() => setCloseDialogOpen(true)}
+          onClick={handleCloseOrPay}
           startIcon={hasPendingOrders ? <Warning /> : <CheckCircle />}
+          disabled={updating}
         >
-          {hasPendingOrders 
-            ? 'Hay pedidos pendientes' 
+          {hasPendingOrders
+            ? 'Hay pedidos pendientes'
             : 'Cerrar cuenta y liberar mesa'}
         </Button>
 

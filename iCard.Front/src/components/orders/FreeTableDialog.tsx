@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { TableService } from '../../services/tables.service';
-import { OrderService } from '../../services/orders.service';
+import { TableService } from '../../services/tables.service'; // ✅ Usa el servicio correcto
 import { Button, CircularProgress, Dialog, DialogActions, DialogContent, Typography } from '@mui/material';
 import { DialogTitle } from '@mui/material';
-import { MeetingRoom } from '@mui/icons-material'; 
 
 interface Props {
   open: boolean;
@@ -18,10 +16,13 @@ export const FreeTableDialog = ({ open, tableId, onClose, onSuccess }: Props) =>
   const handleFreeTable = async () => {
     try {
       setLoading(true);
-      await OrderService.freeTable(tableId); // Nuevo método en el servicio
-      onSuccess();
+      await TableService.freeTable(tableId); // ✅ Llama al método correcto
+      onSuccess(); // ✅ Actualiza lista de mesas
+    } catch (error) {
+      console.error('Error al liberar la mesa:', error);
     } finally {
       setLoading(false);
+      onClose(); // Opcional: cierra el diálogo después de liberar
     }
   };
 
@@ -32,10 +33,13 @@ export const FreeTableDialog = ({ open, tableId, onClose, onSuccess }: Props) =>
         <Typography>¿Está seguro de liberar esta mesa para nuevos clientes?</Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={onClose} disabled={loading}>
+          Cancelar
+        </Button>
         <Button 
           onClick={handleFreeTable} 
           color="primary"
+          variant="contained"
           disabled={loading}
         >
           {loading ? <CircularProgress size={24} /> : 'Liberar Mesa'}
