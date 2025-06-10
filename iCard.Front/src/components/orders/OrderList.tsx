@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -15,8 +15,7 @@ import {
   Alert,
   IconButton,
 } from '@mui/material';
-import { Visibility, Payment } from '@mui/icons-material';
-import { CheckCircle, Warning } from '@mui/icons-material';
+import { Visibility, Payment, CheckCircle, Warning } from '@mui/icons-material';
 import { OrderService } from '../../services/orders.service';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { PaymentStatusBadge } from './PaymentStatusBadge';
@@ -25,7 +24,6 @@ import { CloseAccountDialog } from './CloseAccountDialogProps';
 
 export const OrderList = () => {
   const { tableId } = useParams<{ tableId: string }>();
-  const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -34,20 +32,20 @@ export const OrderList = () => {
   const [updating, setUpdating] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        const data = await OrderService.getOrdersByTable(Number(tableId));
-        setOrders(data);
-      } catch (err) {
-        setError('Error al cargar los pedidos');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const data = await OrderService.getOrdersByTable(Number(tableId));
+      setOrders(data);
+    } catch (err) {
+      setError('Error al cargar los pedidos');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchOrders();
   }, [tableId]);
 
@@ -64,15 +62,8 @@ export const OrderList = () => {
   const handlePayOrder = async (orderId: number) => {
     try {
       setUpdating(true);
-      const response = await OrderService.completeOrder(orderId);
-
-      if (response) {
-        setOrders(orders.map(order =>
-          order.id === orderId
-            ? { ...order, paymentStatus: true, paymentMethod: 'Cash', status: 'Completed' }
-            : order
-        ));
-      }
+      await OrderService.completeOrder(orderId);
+      await fetchOrders(); // Recargar las órdenes después de completar
     } catch (err: any) {
       setError(`Error al procesar el pago: ${err.message}`);
       console.error(err);
@@ -84,12 +75,8 @@ export const OrderList = () => {
   const handleCancelOrder = async (orderId: number) => {
     try {
       setUpdating(true);
-
-      setOrders(orders.map(order =>
-        order.id === orderId
-          ? { ...order, status: 'Cancelled' }
-          : order
-      ));
+      // Podrías implementar una API real aquí
+      await fetchOrders();
     } catch (err) {
       setError('Error al cancelar el pedido');
       console.error(err);
@@ -108,49 +95,28 @@ export const OrderList = () => {
     }
   };
 
-  // Procesar pagos de todas las órdenes completadas y liberar mesa
   const handleCloseOrPay = async () => {
     try {
       setUpdating(true);
-      
-      // Filtrar órdenes completadas que no han sido pagadas
-      const unpaidCompletedOrders = orders.filter(order => 
+
+      const unpaidCompletedOrders = orders.filter(order =>
         order.status === 'Completed' && !order.paymentStatus
       );
 
-      // Si hay órdenes sin pagar, procesarlas
       if (unpaidCompletedOrders.length > 0) {
-        // Procesar pagos para cada orden pendiente
         for (const order of unpaidCompletedOrders) {
           try {
-            const paymentDto = {
-              paymentMethod: 'Cash' // Solo paymentMethod según la API
-            };
-
-            console.log(`Procesando pago para orden ${order.id}`, paymentDto);
-            
-            const paymentResponse = await OrderService.processPayment(order.id, paymentDto);
-            
-            console.log(`Pago procesado para orden ${order.id}:`, paymentResponse);
-
-            // Actualizar el estado de la orden en el frontend
-            setOrders(prevOrders => 
-              prevOrders.map(o => 
-                o.id === order.id 
-                  ? { ...o, paymentStatus: true, paymentMethod: 'Cash' }
-                  : o
-              )
-            );
-
+            const paymentDto = { paymentMethod: 'Cash' };
+            await OrderService.processPayment(order.id, paymentDto);
           } catch (paymentError: any) {
             console.error(`Error al procesar pago para orden ${order.id}:`, paymentError);
             setError(`Error al procesar pago para orden ${order.id}: ${paymentError.message}`);
-            return; // Detener el proceso si hay un error
+            return;
           }
         }
       }
 
-      // Una vez procesados todos los pagos, liberar la mesa
+      await fetchOrders(); // Recargar pedidos después de pagos
       handleFreeTableSuccess();
 
     } catch (err: any) {
@@ -161,10 +127,9 @@ export const OrderList = () => {
     }
   };
 
-  // Validación: El botón se activa solo si TODOS los pedidos están completados
-  const allOrdersCompleted = orders.length > 0 && orders.every(order => order.status === 'Completed');
+  const allOrdersCompleted =
+    orders.length > 0 && orders.every(order => order.status === 'Completed');
 
-  // Calcular el total de la cuenta
   const totalAmount = orders.reduce((sum, order) => sum + order.totalAmount, 0);
 
   if (loading) {
@@ -251,7 +216,6 @@ export const OrderList = () => {
             </Table>
           </TableContainer>
 
-          {/* Mostrar total de la cuenta */}
           <Box mt={2} p={2} bgcolor="background.paper" borderRadius={1}>
             <Typography variant="h6">
               Total de la cuenta: ${totalAmount.toFixed(2)}
