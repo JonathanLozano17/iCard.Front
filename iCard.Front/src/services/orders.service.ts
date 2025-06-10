@@ -37,9 +37,12 @@ export const OrderService = {
     });
     return response.data;
   },
-
+ 
   processPayment: async (orderId: number, paymentDto: any) => {
     const { token } = useAuthStore.getState();
+    console.log('entro al payment', orderId);
+    console.log('entro al payment', paymentDto);
+    
     const response = await axios.post(`${API_URL}/${orderId}/pay`, paymentDto, {
       headers: { Authorization: `Bearer ${token}` },
     });

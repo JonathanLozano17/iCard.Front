@@ -101,7 +101,6 @@ export const OrderList = () => {
   const handleFreeTableSuccess = async () => {
     try {
       setOrders([]);
-      navigate('/tables', { state: { tableFreed: true } });
       alert('Mesa liberada correctamente. Puede atender a un nuevo cliente.');
     } catch (err) {
       setError('Error al liberar la mesa');
@@ -109,39 +108,64 @@ export const OrderList = () => {
     }
   };
 
-  const pendingAmount = orders
-    .filter(order => !order.paymentStatus && order.status !== 'Cancelled')
-    .reduce((sum, order) => sum + order.totalAmount, 0);
-
-  const hasPendingOrders = orders.some(
-    order => !order.paymentStatus && order.status !== 'Cancelled'
-  );
-
-  // Nueva función para manejar el botón "Cerrar cuenta y liberar mesa"
+  // Procesar pagos de todas las órdenes completadas y liberar mesa
   const handleCloseOrPay = async () => {
-    if (hasPendingOrders) {
-      setCloseDialogOpen(true);
-    } else {
-      try {
-        setUpdating(true);
+    try {
+      setUpdating(true);
+      
+      // Filtrar órdenes completadas que no han sido pagadas
+      const unpaidCompletedOrders = orders.filter(order => 
+        order.status === 'Completed' && !order.paymentStatus
+      );
 
-        // Por si hay pedidos pendientes inesperados, marcar como pagado todos
-        for (const order of orders) {
-          if (!order.paymentStatus && order.status !== 'Cancelled') {
-            await OrderService.completeOrder(order.id);
+      // Si hay órdenes sin pagar, procesarlas
+      if (unpaidCompletedOrders.length > 0) {
+        // Procesar pagos para cada orden pendiente
+        for (const order of unpaidCompletedOrders) {
+          try {
+            const paymentDto = {
+              paymentMethod: 'Cash' // Solo paymentMethod según la API
+            };
+
+            console.log(`Procesando pago para orden ${order.id}`, paymentDto);
+            
+            const paymentResponse = await OrderService.processPayment(order.id, paymentDto);
+            
+            console.log(`Pago procesado para orden ${order.id}:`, paymentResponse);
+
+            // Actualizar el estado de la orden en el frontend
+            setOrders(prevOrders => 
+              prevOrders.map(o => 
+                o.id === order.id 
+                  ? { ...o, paymentStatus: true, paymentMethod: 'Cash' }
+                  : o
+              )
+            );
+
+          } catch (paymentError: any) {
+            console.error(`Error al procesar pago para orden ${order.id}:`, paymentError);
+            setError(`Error al procesar pago para orden ${order.id}: ${paymentError.message}`);
+            return; // Detener el proceso si hay un error
           }
         }
-
-        handleFreeTableSuccess();
-
-      } catch (err: any) {
-        setError(`Error al procesar el pago: ${err.message}`);
-        console.error(err);
-      } finally {
-        setUpdating(false);
       }
+
+      // Una vez procesados todos los pagos, liberar la mesa
+      handleFreeTableSuccess();
+
+    } catch (err: any) {
+      setError(`Error al cerrar cuenta: ${err.message}`);
+      console.error(err);
+    } finally {
+      setUpdating(false);
     }
   };
+
+  // Validación: El botón se activa solo si TODOS los pedidos están completados
+  const allOrdersCompleted = orders.length > 0 && orders.every(order => order.status === 'Completed');
+
+  // Calcular el total de la cuenta
+  const totalAmount = orders.reduce((sum, order) => sum + order.totalAmount, 0);
 
   if (loading) {
     return (
@@ -168,83 +192,95 @@ export const OrderList = () => {
       {orders.length === 0 ? (
         <Typography variant="body1">No hay pedidos para esta mesa</Typography>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell>Pago</TableCell>
-                <TableCell>Total</TableCell>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell>{order.id}</TableCell>
-                  <TableCell>
-                    <OrderStatusBadge status={order.status} />
-                  </TableCell>
-                  <TableCell>
-                    <PaymentStatusBadge
-                      paid={order.paymentStatus}
-                      method={order.paymentMethod}
-                    />
-                  </TableCell>
-                  <TableCell>${order.totalAmount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    {new Date(order.createdAt).toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <Box display="flex" gap={1}>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDetail(order)}
-                        title="Ver detalles"
-                      >
-                        <Visibility fontSize="small" />
-                      </IconButton>
-
-                      {!order.paymentStatus && order.status !== 'Cancelled' && (
+        <>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell>Pago</TableCell>
+                  <TableCell>Total</TableCell>
+                  <TableCell>Fecha</TableCell>
+                  <TableCell>Acciones</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell>{order.id}</TableCell>
+                    <TableCell>
+                      <OrderStatusBadge status={order.status} />
+                    </TableCell>
+                    <TableCell>
+                      <PaymentStatusBadge
+                        paid={order.paymentStatus}
+                        method={order.paymentMethod}
+                      />
+                    </TableCell>
+                    <TableCell>${order.totalAmount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {new Date(order.createdAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Box display="flex" gap={1}>
                         <IconButton
                           size="small"
-                          color="success"
-                          onClick={() => handlePayOrder(order.id)}
-                          disabled={updating}
-                          title="Marcar como pagado"
+                          onClick={() => handleOpenDetail(order)}
+                          title="Ver detalles"
                         >
-                          <Payment fontSize="small" />
+                          <Visibility fontSize="small" />
                         </IconButton>
-                      )}
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+
+                        {!order.paymentStatus && order.status !== 'Cancelled' && (
+                          <IconButton
+                            size="small"
+                            color="success"
+                            onClick={() => handlePayOrder(order.id)}
+                            disabled={updating}
+                            title="Completar Orden"
+                          >
+                            <Payment fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Mostrar total de la cuenta */}
+          <Box mt={2} p={2} bgcolor="background.paper" borderRadius={1}>
+            <Typography variant="h6">
+              Total de la cuenta: ${totalAmount.toFixed(2)}
+            </Typography>
+          </Box>
+        </>
       )}
 
       <Box mt={2}>
         <Button
           variant="contained"
-          color={hasPendingOrders ? "warning" : "success"}
+          color={allOrdersCompleted ? "success" : "warning"}
           onClick={handleCloseOrPay}
-          startIcon={hasPendingOrders ? <Warning /> : <CheckCircle />}
-          disabled={updating}
+          startIcon={allOrdersCompleted ? <CheckCircle /> : <Warning />}
+          disabled={!allOrdersCompleted || updating}
+          size="large"
         >
-          {hasPendingOrders
-            ? 'Hay pedidos pendientes'
-            : 'Cerrar cuenta y liberar mesa'}
+          {updating
+            ? 'Procesando...'
+            : allOrdersCompleted
+            ? 'Cerrar cuenta y liberar mesa'
+            : 'Solo se puede cerrar si todos están completados'}
         </Button>
 
         <CloseAccountDialog
           open={closeDialogOpen}
           onClose={() => setCloseDialogOpen(false)}
           tableId={Number(tableId)}
-          totalAmount={pendingAmount}
+          totalAmount={totalAmount}
           onSuccess={handleFreeTableSuccess}
         />
       </Box>
